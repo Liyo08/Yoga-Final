@@ -1,0 +1,1155 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yoga Pose Detection with Audio Correction</title>
+    <style>
+    
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Montserrat:wght@300;400;600&display=swap');
+        
+        :root {
+            --primary-bg: linear-gradient(135deg, #0f0c29 0%, #000015 50%, #000618 100%);
+            --card-bg: rgba(15, 23, 42, 0.8);
+            --text-light: #e2e8f0;
+            --text-lighter: #f8fafc;
+            --accent-1: #ec4899;
+            --accent-2: #3b82f6;
+            --accent-3: #10b981;
+            --glass-effect: rgba(255, 255, 255, 0.05);
+            --border-light: rgba(255, 255, 255, 0.1);
+            --border-glow: rgba(99, 102, 241, 0.4);
+        }
+
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background: var(--primary-bg);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            color: var(--text-light);
+            line-height: 1.6;
+        }
+
+        h1, h2, h3 {
+            font-family: 'Playfair Display', serif;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        h1 {
+            color: var(--text-lighter);
+            margin-bottom: 10px;
+            font-size: 2.5rem;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+            position: relative;
+            display: inline-block;
+        }
+
+        h1:after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, var(--accent-1), var(--accent-2), var(--accent-3));
+            border-radius: 2px;
+        }
+
+        p {
+            font-weight: 300;
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .main-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            width: 100%;
+            max-width: 1200px;
+            gap: 30px;
+        }
+
+        .video-container {
+            position: relative;
+            width: 640px;
+            height: 480px;
+            margin: 20px 0;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--border-light);
+            transition: all 0.3s ease;
+        }
+
+        .video-container:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+        }
+
+        #video {
+            display: none;
+        }
+
+        #canvas {
+            width: 100%;
+            height: 100%;
+            background-color: #000;
+        }
+
+        #result {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin: 15px 0;
+            padding: 20px 30px;
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            min-width: 300px;
+            color: var(--text-lighter);
+            border: 1px solid var(--border-light);
+            transition: all 0.3s ease;
+        }
+
+        .correction-panel {
+            width: 400px;
+            padding: 25px;
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
+            display: flex;
+            flex-direction: column;
+            border: 1px solid var(--border-light);
+            transition: all 0.3s ease;
+        }
+
+        .correction-panel:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--border-glow);
+        }
+
+        #correction-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: var(--text-lighter);
+            text-align: center;
+            font-family: 'Playfair Display', serif;
+            position: relative;
+        }
+
+        #correction-title:after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 25%;
+            width: 50%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--accent-2), transparent);
+        }
+
+        #correction-steps {
+            flex-grow: 1;
+            overflow-y: auto;
+            max-height: 400px;
+            padding-right: 10px;
+        }
+
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 1.2rem;
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 15px 25px;
+            border-radius: 8px;
+            font-family: 'Montserrat', sans-serif;
+            backdrop-filter: blur(5px);
+            border: 1px solid var(--border-light);
+        }
+
+        button {
+            background: linear-gradient(135deg, var(--accent-1) 0%, var(--accent-2) 50%, var(--accent-3) 100%);
+            color: #fff;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1rem;
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 600;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            margin: 15px;
+            box-shadow: 0 8px 25px rgba(59, 130, 246, 0.3);
+            position: relative;
+            overflow: hidden;
+            z-index: 1;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        button:before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, var(--accent-3) 0%, var(--accent-2) 50%, var(--accent-1) 100%);
+            z-index: -1;
+            opacity: 0;
+            transition: opacity 0.4s ease;
+        }
+
+        button:hover {
+            transform: translateY(-5px) scale(1.05);
+            box-shadow: 0 15px 35px rgba(59, 130, 246, 0.4);
+            animation: pulse 2s infinite;
+        }
+
+        button:hover:before {
+            opacity: 1;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.7); }
+            70% { box-shadow: 0 0 0 15px rgba(99, 102, 241, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
+        }
+
+        button:active {
+            transform: translateY(0) scale(0.98);
+        }
+
+        button:disabled {
+            background: linear-gradient(135deg, #777 0%, #999 50%, #aaa 100%);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+            animation: none;
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 15px;
+        }
+
+        .audio-controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-top: 15px;
+            color: var(--text-light);
+            font-size: 1rem;
+        }
+
+        .audio-controls input[type="checkbox"] {
+            -webkit-appearance: none;
+            width: 50px;
+            height: 25px;
+            background: var(--glass-effect);
+            border-radius: 50px;
+            position: relative;
+            cursor: pointer;
+            border: 1px solid var(--border-light);
+            transition: all 0.3s ease;
+        }
+
+        .audio-controls input[type="checkbox"]:checked {
+            background: linear-gradient(135deg, var(--accent-2), var(--accent-3));
+        }
+
+        .audio-controls input[type="checkbox"]:before {
+            content: '';
+            position: absolute;
+            width: 21px;
+            height: 21px;
+            border-radius: 50%;
+            background: white;
+            top: 2px;
+            left: 2px;
+            transition: all 0.3s ease;
+        }
+
+        .audio-controls input[type="checkbox"]:checked:before {
+            left: calc(100% - 23px);
+        }
+
+        .poses-info {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin: 30px 0;
+            gap: 25px;
+            width: 100%;
+        }
+
+        .pose-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 20px;
+            width: 220px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            border: 1px solid var(--border-light);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            overflow: hidden;
+            position: relative;
+        }
+
+        .pose-card:before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(
+                to bottom right,
+                rgba(255, 255, 255, 0) 0%,
+                rgba(255, 255, 255, 0.05) 50%,
+                rgba(255, 255, 255, 0) 100%
+            );
+            transform: rotate(30deg);
+            transition: all 0.6s ease;
+        }
+
+        .pose-card:hover {
+            transform: translateY(-10px) scale(1.03);
+            box-shadow: 0 20px 45px rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--border-glow);
+        }
+
+        .pose-card:hover:before {
+            left: 100%;
+        }
+
+        .pose-card h3 {
+            margin-top: 0;
+            color: var(--text-lighter);
+            font-family: 'Playfair Display', serif;
+            font-size: 1.4rem;
+            margin-bottom: 15px;
+            position: relative;
+            display: inline-block;
+        }
+
+        .pose-card h3:after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 0;
+            width: 100%;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--accent-2), transparent);
+        }
+
+        .pose-card img {
+            width: 100%;
+            height: 140px;
+            object-fit: cover;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border: 1px solid var(--border-light);
+            transition: all 0.3s ease;
+        }
+
+        .pose-card:hover img {
+            transform: scale(1.05);
+        }
+
+        .pose-card p {
+            font-size: 0.95rem;
+            opacity: 0.8;
+            margin-bottom: 0;
+        }
+
+        .confidence {
+            font-size: 0.85rem;
+            color: #aaa;
+            margin-top: 10px;
+            font-style: italic;
+        }
+
+        .camera-select {
+            margin: 15px 0;
+            padding: 10px 20px;
+            border-radius: 50px;
+            border: 1px solid var(--border-light);
+            font-size: 1rem;
+            background: var(--card-bg);
+            color: var(--text-light);
+            font-family: 'Montserrat', sans-serif;
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3e%3cpath d='M7 10l5 5 5-5z'/%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 15px center;
+            background-size: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .camera-select:hover {
+            border-color: var(--border-glow);
+        }
+
+        .correction-good {
+            color: var(--accent-3);
+            font-weight: 600;
+        }
+
+        .correction-need {
+            color: #fbbf24;
+            font-weight: 600;
+        }
+
+        .correction-bad {
+            color: #ef4444;
+            font-weight: 600;
+        }
+
+        .correction-step {
+            margin-bottom: 15px;
+            padding: 12px 15px;
+            border-radius: 8px;
+            background: var(--glass-effect);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .correction-step:before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 3px;
+            height: 100%;
+            background: currentColor;
+        }
+
+        .correction-step:hover {
+            transform: translateX(5px);
+            background: rgba(255, 255, 255, 0.1);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        @media (max-width: 1100px) {
+            .main-container {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .correction-panel {
+                width: 640px;
+                margin-top: 30px;
+            }
+        }
+
+        @media (max-width: 700px) {
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .video-container {
+                width: 100%;
+                height: auto;
+            }
+            
+            .correction-panel {
+                width: 100%;
+            }
+            
+            .poses-info {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            button {
+                padding: 12px 25px;
+                font-size: 0.9rem;
+            }
+        }
+    
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">ZENALIGN</div>
+      
+           
+        </div>
+     </nav>
+    <div class="container">
+        <h1>Yoga Pose Detection with Audio Correction</h1>
+        <p>Detects poses and provides real-time visual and audio feedback</p>
+        
+        <select id="cameraSelect" class="camera-select" disabled>
+            <option value="">Select a camera...</option>
+        </select>
+        
+        <div class="main-container">
+            <div class="video-container">
+                <video id="video" width="640" height="480" autoplay playsinline></video>
+                <canvas id="canvas" width="640" height="480"></canvas>
+                <div id="loading">Loading PoseNet model...</div>
+            </div>
+            
+            <div class="correction-panel">
+                <div id="correction-title">Pose Correction Steps</div>
+                <div id="correction-steps"></div>
+                <div id="result">Press Start to begin detection</div>
+                
+                <div class="controls">
+                    <button id="startBtn">Start Detection</button>
+                    <div class="audio-controls">
+                        <label for="audioToggle">Audio Feedback:</label>
+                        <input type="checkbox" id="audioToggle" checked>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="poses-info">
+            <div class="pose-card">
+                <img src="https://www.yogadownload.com/Portals/0/Mountain-NEW_1.jpg" alt="Mountain Pose">
+                <h3>Mountain Pose</h3>
+                <p>Stand tall with feet together, arms at sides</p>
+            </div>
+            <div class="pose-card">
+                <img src="https://veritas.widen.net/content/cjayf74xjf/png/warrior-pose-yoga.png?use=idsla&color=&retina=false&u=at8tiu&w=780&h=449&crop=yes&k=c" alt="Warrior Pose">
+                <h3>Warrior II</h3>
+                <p>One leg forward bent at 90°, arms extended</p>
+            </div>
+            <div class="pose-card">
+                <img src="https://yogapractice.com/wp-content/uploads/2019/05/How-to-Do-Tree-Pose-1.jpg" alt="Tree Pose">
+                <h3>Tree Pose</h3>
+                <p>Stand on one leg, other foot on inner thigh</p>
+            </div>
+            <div class="pose-card">
+                <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR5bxQHMGwY8-DBJlxo5AKy-5NUiOUymD3kJQ&s" alt="Downward Dog">
+                <h3>Downward Dog</h3>
+                <p>Hands and feet on ground, hips raised high</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/posenet"></script>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const resultDiv = document.getElementById('result');
+        const correctionStepsDiv = document.getElementById('correction-steps');
+        const correctionTitleDiv = document.getElementById('correction-title');
+        const loadingDiv = document.getElementById('loading');
+        const startBtn = document.getElementById('startBtn');
+        const cameraSelect = document.getElementById('cameraSelect');
+        const audioToggle = document.getElementById('audioToggle');
+        
+        let net;
+        let isDetecting = false;
+        let currentStream = null;
+        let lastAudioTime = 0;
+        const audioCooldown = 5000; // 5 seconds between audio feedbacks
+        let lastSpokenCorrection = '';
+        let correctionRepeatCount = 0;
+
+        // Pose detection parameters
+        const MIN_CONFIDENCE = 0.5;
+        const POSE_DETECTION_INTERVAL = 100; // ms
+        const ANGLE_TOLERANCE = 15; // degrees tolerance for pose angles
+
+        // Speech synthesis
+        const synth = window.speechSynthesis;
+        let voices = [];
+        
+        function loadVoices() {
+            voices = synth.getVoices();
+            // Prefer female voices for better clarity
+            voices = voices.filter(voice => voice.name.includes('Female') || voice.name.includes('female'));
+        }
+        
+        // Load voices when they become available
+        synth.onvoiceschanged = loadVoices;
+        loadVoices();
+
+        function speak(text) {
+            if (!audioToggle.checked) return;
+            
+            const now = Date.now();
+            if (now - lastAudioTime < audioCooldown) return;
+            
+            // Don't repeat the same correction more than twice in a row
+            if (text === lastSpokenCorrection) {
+                correctionRepeatCount++;
+                if (correctionRepeatCount > 2) return;
+            } else {
+                correctionRepeatCount = 0;
+                lastSpokenCorrection = text;
+            }
+            
+            lastAudioTime = now;
+            
+            if (synth.speaking) {
+                synth.cancel();
+            }
+            
+            const utterance = new SpeechSynthesisUtterance(text);
+            if (voices.length > 0) {
+                utterance.voice = voices[0]; // Use first available female voice
+            }
+            utterance.rate = 0.9;
+            utterance.pitch = 1.0;
+            utterance.volume = 1.0;
+            
+            synth.speak(utterance);
+        }
+
+        // Get available cameras
+        async function getCameras() {
+            try {
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const videoDevices = devices.filter(device => device.kind === 'videoinput');
+                
+                if (videoDevices.length === 0) {
+                    console.log('No cameras found');
+                    return;
+                }
+                
+                cameraSelect.innerHTML = '<option value="">Select a camera...</option>';
+                videoDevices.forEach((device, index) => {
+                    const option = document.createElement('option');
+                    option.value = device.deviceId;
+                    option.text = device.label || `Camera ${index + 1}`;
+                    cameraSelect.appendChild(option);
+                });
+                cameraSelect.disabled = false;
+            } catch (err) {
+                console.error('Error enumerating devices:', err);
+            }
+        }
+
+        // Stop current video stream
+        function stopMediaTracks() {
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+                currentStream = null;
+            }
+        }
+
+        // Setup selected camera
+        async function setupCamera(deviceId) {
+            stopMediaTracks();
+            
+            const constraints = {
+                video: {
+                    width: { ideal: 640 },
+                    height: { ideal: 480 },
+                    deviceId: deviceId ? { exact: deviceId } : undefined,
+                    facingMode: deviceId ? undefined : 'user'
+                }
+            };
+            
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                currentStream = stream;
+                video.srcObject = stream;
+                
+                return new Promise((resolve) => {
+                    video.onloadedmetadata = () => {
+                        video.play();
+                        resolve(true);
+                    };
+                });
+            } catch (err) {
+                console.error("Camera error: ", err);
+                resultDiv.textContent = "Error accessing camera. Please allow camera access.";
+                return false;
+            }
+        }
+
+        async function loadPoseNet() {
+            try {
+                loadingDiv.textContent = "Loading PoseNet model...";
+                loadingDiv.style.display = 'block';
+                net = await posenet.load({
+                    architecture: 'MobileNetV1',
+                    outputStride: 16,
+                    inputResolution: { width: 640, height: 480 },
+                    multiplier: 0.75
+                });
+                loadingDiv.style.display = 'none';
+                return true;
+            } catch (err) {
+                console.error("PoseNet error: ", err);
+                loadingDiv.textContent = "Error loading PoseNet model";
+                resultDiv.textContent = "Error loading PoseNet model. Please refresh the page.";
+                return false;
+            }
+        }
+
+        function drawKeypoints(keypoints) {
+            for (let i = 0; i < keypoints.length; i++) {
+                const keypoint = keypoints[i];
+                if (keypoint.score < MIN_CONFIDENCE) {
+                    continue;
+                }
+                const { y, x } = keypoint.position;
+                ctx.beginPath();
+                ctx.arc(x, y, 5, 0, 2 * Math.PI);
+                ctx.fillStyle = 'aqua';
+                ctx.fill();
+            }
+        }
+
+        function drawSkeleton(keypoints) {
+            const adjacentKeyPoints = posenet.getAdjacentKeyPoints(keypoints, MIN_CONFIDENCE);
+            adjacentKeyPoints.forEach(([firstPoint, secondPoint]) => {
+                ctx.beginPath();
+                ctx.moveTo(firstPoint.position.x, firstPoint.position.y);
+                ctx.lineTo(secondPoint.position.x, secondPoint.position.y);
+                ctx.strokeStyle = 'aqua';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            });
+        }
+
+        function getKeypoint(keypoints, partName) {
+            return keypoints.find(kp => kp.part === partName && kp.score > MIN_CONFIDENCE);
+        }
+
+        function calculateAngle(a, b, c) {
+            if (!a || !b || !c) return 0;
+            const ab = Math.sqrt(Math.pow(b.x - a.x, 2) + Math.pow(b.y - a.y, 2));
+            const bc = Math.sqrt(Math.pow(b.x - c.x, 2) + Math.pow(b.y - c.y, 2));
+            const ac = Math.sqrt(Math.pow(c.x - a.x, 2) + Math.pow(c.y - a.y, 2));
+            const angle = Math.acos((ab * ab + bc * bc - ac * ac) / (2 * ab * bc)) * (180 / Math.PI);
+            return angle;
+        }
+
+        function isWithinTolerance(value, target, tolerance) {
+            return Math.abs(value - target) <= tolerance;
+        }
+
+        function determinePose(keypoints) {
+            const correctionMessages = [];
+            let highestConfidencePose = { pose: "No pose detected", confidence: 0 };
+            
+            // Get required keypoints
+            const leftShoulder = getKeypoint(keypoints, 'leftShoulder');
+            const rightShoulder = getKeypoint(keypoints, 'rightShoulder');
+            const leftElbow = getKeypoint(keypoints, 'leftElbow');
+            const rightElbow = getKeypoint(keypoints, 'rightElbow');
+            const leftWrist = getKeypoint(keypoints, 'leftWrist');
+            const rightWrist = getKeypoint(keypoints, 'rightWrist');
+            const leftHip = getKeypoint(keypoints, 'leftHip');
+            const rightHip = getKeypoint(keypoints, 'rightHip');
+            const leftKnee = getKeypoint(keypoints, 'leftKnee');
+            const rightKnee = getKeypoint(keypoints, 'rightKnee');
+            const leftAnkle = getKeypoint(keypoints, 'leftAnkle');
+            const rightAnkle = getKeypoint(keypoints, 'rightAnkle');
+
+            // If we don't have enough keypoints, return unknown
+            if (!leftShoulder || !rightShoulder || !leftHip || !rightHip) {
+                correctionMessages.push("Make sure your shoulders and hips are visible to the camera");
+                return { 
+                    pose: "No pose detected", 
+                    confidence: 0,
+                    corrections: correctionMessages
+                };
+            }
+
+            // Calculate important metrics
+            const torsoHeight = Math.abs((leftShoulder.position.y + rightShoulder.position.y)/2 - 
+                                      (leftHip.position.y + rightHip.position.y)/2);
+
+            // 1. Mountain Pose (Tadasana)
+            if (leftKnee && rightKnee && leftAnkle && rightAnkle) {
+                const shoulderLevel = Math.abs(leftShoulder.position.y - rightShoulder.position.y) < 0.1 * torsoHeight;
+                const hipLevel = Math.abs(leftHip.position.y - rightHip.position.y) < 0.1 * torsoHeight;
+                const kneeLevel = Math.abs(leftKnee.position.y - rightKnee.position.y) < 0.1 * torsoHeight;
+                const ankleLevel = Math.abs(leftAnkle.position.y - rightAnkle.position.y) < 0.1 * torsoHeight;
+                
+                // Check if arms are straight down
+                const leftArmAngle = leftElbow ? 
+                    calculateAngle(leftShoulder.position, leftElbow.position, leftWrist ? leftWrist.position : {x: leftElbow.position.x, y: leftElbow.position.y + 20}) : 180;
+                const rightArmAngle = rightElbow ? 
+                    calculateAngle(rightShoulder.position, rightElbow.position, rightWrist ? rightWrist.position : {x: rightElbow.position.x, y: rightElbow.position.y + 20}) : 180;
+                
+                const armsStraight = isWithinTolerance(leftArmAngle, 180, ANGLE_TOLERANCE) && 
+                                   isWithinTolerance(rightArmAngle, 180, ANGLE_TOLERANCE);
+                
+                // Check if legs are straight
+                const leftLegAngle = calculateAngle(leftHip.position, leftKnee.position, leftAnkle.position);
+                const rightLegAngle = calculateAngle(rightHip.position, rightKnee.position, rightAnkle.position);
+                const legsStraight = isWithinTolerance(leftLegAngle, 180, ANGLE_TOLERANCE) && 
+                                   isWithinTolerance(rightLegAngle, 180, ANGLE_TOLERANCE);
+
+                let mountainPoseConfidence = 0;
+                let mountainCorrections = [];
+
+                if (!shoulderLevel) mountainCorrections.push("Level your shoulders - keep them at the same height");
+                if (!hipLevel) mountainCorrections.push("Align your hips evenly - don't tilt to one side");
+                if (!kneeLevel) mountainCorrections.push("Straighten both knees evenly");
+                if (!ankleLevel) mountainCorrections.push("Distribute weight evenly on both feet");
+                if (!armsStraight) mountainCorrections.push("Relax your arms straight down by your sides");
+                if (!legsStraight) mountainCorrections.push("Stand with straight legs - don't lock your knees");
+
+                // Calculate confidence
+                const conditions = [shoulderLevel, hipLevel, kneeLevel, ankleLevel, armsStraight, legsStraight];
+                const metConditions = conditions.filter(Boolean).length;
+                mountainPoseConfidence = metConditions / conditions.length * 0.9;
+
+                if (mountainPoseConfidence > 0.7) {
+                    mountainCorrections.push("Perfect Mountain Pose! Keep your spine straight and breathe deeply");
+                }
+
+                if (mountainPoseConfidence > highestConfidencePose.confidence) {
+                    highestConfidencePose = {
+                        pose: "Mountain Pose",
+                        confidence: mountainPoseConfidence,
+                        corrections: mountainCorrections
+                    };
+                }
+            }
+
+            // 2. Warrior II (Virabhadrasana II)
+            if (leftKnee && rightKnee && leftAnkle && rightAnkle) {
+                const leftKneeAngle = calculateAngle(leftHip.position, leftKnee.position, leftAnkle.position);
+                const rightKneeAngle = calculateAngle(rightHip.position, rightKnee.position, rightAnkle.position);
+                
+                const frontKneeBent = (leftKneeAngle < 90 + ANGLE_TOLERANCE && leftKneeAngle > 45) || 
+                                     (rightKneeAngle < 90 + ANGLE_TOLERANCE && rightKneeAngle > 45);
+                
+                const backLegStraight = (leftKneeAngle > 160 || rightKneeAngle > 160);
+                
+                const armsExtended = leftWrist && rightWrist &&
+                                   Math.abs(leftWrist.position.y - rightWrist.position.y) < 0.2 * torsoHeight &&
+                                   Math.abs(leftWrist.position.x - rightWrist.position.x) > 1.5 * Math.abs(leftShoulder.position.x - rightShoulder.position.x);
+                
+                const hipsOpen = Math.abs(leftHip.position.x - rightHip.position.x) > 0.7 * Math.abs(leftShoulder.position.x - rightShoulder.position.x);
+
+                let warriorConfidence = 0;
+                let warriorCorrections = [];
+
+                if (!frontKneeBent) {
+                    warriorCorrections.push("Bend your front knee to 90 degrees - thigh parallel to floor");
+                } else {
+                    const bentKneeAngle = leftKneeAngle < 90 + ANGLE_TOLERANCE ? leftKneeAngle : rightKneeAngle;
+                    const side = leftKneeAngle < 90 + ANGLE_TOLERANCE ? "left" : "right";
+                    warriorCorrections.push(`Bend your ${side} knee more to reach 90 degrees (currently ${Math.round(bentKneeAngle)}°)`);
+                }
+
+                if (!backLegStraight) {
+                    warriorCorrections.push("Straighten your back leg completely - press the outer edge of your foot down");
+                }
+
+                if (!armsExtended) {
+                    warriorCorrections.push("Extend both arms fully - one forward, one back at shoulder height");
+                } else {
+                    warriorCorrections.push("Good arm extension - keep them strong at shoulder height");
+                }
+
+                if (!hipsOpen) {
+                    warriorCorrections.push("Open your hips to the side - align your front heel with your back arch");
+                }
+
+                // Calculate confidence
+                const conditions = [frontKneeBent, backLegStraight, armsExtended, hipsOpen];
+                const metConditions = conditions.filter(Boolean).length;
+                warriorConfidence = metConditions / conditions.length * 0.85;
+
+                if (warriorConfidence > 0.6) {
+                    warriorCorrections.push("Excellent Warrior II! Keep your front knee aligned over ankle");
+                }
+
+                if (warriorConfidence > highestConfidencePose.confidence) {
+                    highestConfidencePose = {
+                        pose: "Warrior II Pose",
+                        confidence: warriorConfidence,
+                        corrections: warriorCorrections
+                    };
+                }
+            }
+
+            // 3. Tree Pose (Vrikshasana)
+            if ((leftKnee && leftKnee.position.y < leftHip.position.y - 0.3 * torsoHeight) ||
+                (rightKnee && rightKnee.position.y < rightHip.position.y - 0.3 * torsoHeight)) {
+                
+                const leftLegLifted = leftKnee && leftKnee.position.y < leftHip.position.y - 0.3 * torsoHeight;
+                const rightLegLifted = rightKnee && rightKnee.position.y < rightHip.position.y - 0.3 * torsoHeight;
+                
+                const footOnThigh = (leftLegLifted && 
+                                    leftKnee.position.x > leftHip.position.x - 0.3 * Math.abs(leftHip.position.x - rightHip.position.x) && 
+                                    leftKnee.position.x < leftHip.position.x + 0.3 * Math.abs(leftHip.position.x - rightHip.position.x)) ||
+                                   (rightLegLifted && 
+                                    rightKnee.position.x > rightHip.position.x - 0.3 * Math.abs(leftHip.position.x - rightHip.position.x) && 
+                                    rightKnee.position.x < rightHip.position.x + 0.3 * Math.abs(leftHip.position.x - rightHip.position.x));
+                
+                const handsAtChest = leftWrist && rightWrist &&
+                                   Math.abs(leftWrist.position.y - rightWrist.position.y) < 0.2 * torsoHeight &&
+                                   Math.abs(leftWrist.position.x - rightWrist.position.x) < 0.3 * Math.abs(leftShoulder.position.x - rightShoulder.position.x) &&
+                                   leftWrist.position.y > leftHip.position.y - 0.3 * torsoHeight &&
+                                   leftWrist.position.y < leftShoulder.position.y + 0.3 * torsoHeight;
+                
+                const handsOverhead = leftWrist && rightWrist &&
+                                    Math.abs(leftWrist.position.x - rightWrist.position.x) < 0.3 * Math.abs(leftShoulder.position.x - rightShoulder.position.x) &&
+                                    leftWrist.position.y < leftShoulder.position.y;
+
+                let treePoseConfidence = 0;
+                let treeCorrections = [];
+
+                if (!footOnThigh) {
+                    const side = leftLegLifted ? "left" : "right";
+                    treeCorrections.push(`Place your ${side} foot on your inner thigh - avoid the knee`);
+                } else {
+                    const side = leftLegLifted ? "left" : "right";
+                    treeCorrections.push(`Good foot placement - press your ${side} foot into your thigh`);
+                }
+
+                if (!handsAtChest && !handsOverhead) {
+                    treeCorrections.push("Bring your palms together at chest level or overhead");
+                } else if (handsAtChest) {
+                    treeCorrections.push("Hands at chest - good position");
+                } else {
+                    treeCorrections.push("Hands overhead - good position");
+                }
+
+                const hipAlignment = Math.abs(leftHip.position.y - rightHip.position.y) < 0.1 * torsoHeight;
+                const shoulderAlignment = Math.abs(leftShoulder.position.y - rightShoulder.position.y) < 0.1 * torsoHeight;
+                
+                if (!hipAlignment || !shoulderAlignment) {
+                    treeCorrections.push("Focus on a fixed point and engage your core for balance");
+                }
+
+                // Calculate confidence
+                const conditions = [footOnThigh, (handsAtChest || handsOverhead), hipAlignment, shoulderAlignment];
+                const metConditions = conditions.filter(Boolean).length;
+                treePoseConfidence = metConditions / conditions.length * 0.8;
+
+                if (treePoseConfidence > 0.6) {
+                    treeCorrections.push("Beautiful Tree Pose! Keep your standing leg strong");
+                }
+
+                if (treePoseConfidence > highestConfidencePose.confidence) {
+                    highestConfidencePose = {
+                        pose: "Tree Pose",
+                        confidence: treePoseConfidence,
+                        corrections: treeCorrections
+                    };
+                }
+            }
+
+            // 4. Downward Dog (Adho Mukha Svanasana)
+            if (leftWrist && rightWrist && leftAnkle && rightAnkle) {
+                const handsBelowShoulders = leftWrist.position.y > leftShoulder.position.y + 0.2 * torsoHeight &&
+                                          rightWrist.position.y > rightShoulder.position.y + 0.2 * torsoHeight;
+                
+                const feetBelowHips = leftAnkle.position.y > leftHip.position.y + 0.2 * torsoHeight &&
+                                    rightAnkle.position.y > rightHip.position.y + 0.2 * torsoHeight;
+                
+                const hipsHigherThanShoulders = (leftHip.position.y + rightHip.position.y)/2 < 
+                                              (leftShoulder.position.y + rightShoulder.position.y)/2;
+                
+                const leftLegAngle = leftKnee ? calculateAngle(leftHip.position, leftKnee.position, leftAnkle.position) : 180;
+                const rightLegAngle = rightKnee ? calculateAngle(rightHip.position, rightKnee.position, rightAnkle.position) : 180;
+                const legsStraight = isWithinTolerance(leftLegAngle, 180, ANGLE_TOLERANCE) && 
+                                   isWithinTolerance(rightLegAngle, 180, ANGLE_TOLERANCE);
+                
+                const leftArmAngle = leftElbow ? calculateAngle(leftShoulder.position, leftElbow.position, leftWrist.position) : 180;
+                const rightArmAngle = rightElbow ? calculateAngle(rightShoulder.position, rightElbow.position, rightWrist.position) : 180;
+                const armsStraight = isWithinTolerance(leftArmAngle, 180, ANGLE_TOLERANCE) && 
+                                   isWithinTolerance(rightArmAngle, 180, ANGLE_TOLERANCE);
+
+                let dogPoseConfidence = 0;
+                let dogCorrections = [];
+
+                if (!handsBelowShoulders) dogCorrections.push("Press your palms firmly into the mat - spread your fingers wide");
+                if (!feetBelowHips) dogCorrections.push("Walk your feet back until your heels can reach toward the floor");
+                if (!hipsHigherThanShoulders) dogCorrections.push("Lift your hips up and back toward the ceiling");
+                if (!legsStraight) dogCorrections.push("Straighten your legs completely - engage your thigh muscles");
+                if (!armsStraight) dogCorrections.push("Straighten your arms and rotate your shoulders outward");
+
+                // Calculate confidence
+                const conditions = [handsBelowShoulders, feetBelowHips, hipsHigherThanShoulders, legsStraight, armsStraight];
+                const metConditions = conditions.filter(Boolean).length;
+                dogPoseConfidence = metConditions / conditions.length * 0.85;
+
+                if (dogPoseConfidence > 0.6) {
+                    dogCorrections.push("Perfect Downward Dog! Lengthen your spine and breathe deeply");
+                }
+
+                if (dogPoseConfidence > highestConfidencePose.confidence) {
+                    highestConfidencePose = {
+                        pose: "Downward Dog Pose",
+                        confidence: dogPoseConfidence,
+                        corrections: dogCorrections
+                    };
+                }
+            }
+
+            // If no pose detected with confidence, provide general feedback
+            if (highestConfidencePose.confidence < 0.5) {
+                correctionMessages.push("Stand clearly in view of the camera with your whole body visible");
+                correctionMessages.push("Try one of the standard poses shown below");
+                
+                highestConfidencePose.corrections = correctionMessages.concat(highestConfidencePose.corrections || []);
+            }
+
+            return highestConfidencePose;
+        }
+
+        function displayCorrections(pose, corrections) {
+            correctionStepsDiv.innerHTML = '';
+            correctionTitleDiv.textContent = `${pose} Corrections`;
+            
+            if (!corrections || corrections.length === 0) {
+                const p = document.createElement('p');
+                p.textContent = "No corrections needed. Perfect pose!";
+                p.className = 'correction-good correction-step';
+                correctionStepsDiv.appendChild(p);
+                speak("Perfect pose! Well done!");
+                return;
+            }
+            
+            // Speak the first correction (most important one)
+            if (corrections.length > 0) {
+                const audioMessage = corrections[0].replace(/°/g, ' degrees')
+                    .replace(/\d+°/, match => match.replace('°', ' degrees'));
+                speak(audioMessage);
+            }
+            
+            corrections.forEach((message, index) => {
+                const p = document.createElement('p');
+                p.className = 'correction-step';
+                
+                // Style messages based on content
+                if (message.includes("Great") || message.includes("Excellent") || 
+                    message.includes("Perfect") || message.includes("good") || 
+                    message.includes("well") || message.includes("Beautiful") ||
+                    message.includes("correct")) {
+                    p.className += ' correction-good';
+                } else if (message.includes("Try") || message.includes("Make sure") || 
+                          message.includes("Keep") || message.includes("focus") ||
+                          message.includes("adjust")) {
+                    p.className += ' correction-need';
+                } else {
+                    p.className += ' correction-bad';
+                }
+                
+                p.textContent = `• ${message}`;
+                correctionStepsDiv.appendChild(p);
+            });
+        }
+
+        async function detectPose() {
+            if (!isDetecting) return;
+            
+            try {
+                const pose = await net.estimateSinglePose(video, {
+                    flipHorizontal: false,
+                    maxDetections: 1,
+                    scoreThreshold: MIN_CONFIDENCE,
+                    nmsRadius: 20
+                });
+                
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                
+                drawKeypoints(pose.keypoints);
+                drawSkeleton(pose.keypoints);
+                
+                const { pose: detectedPose, confidence, corrections } = determinePose(pose.keypoints);
+                
+                if (confidence > 0.7) {
+                    resultDiv.textContent = detectedPose;
+                    resultDiv.style.color = "#27ae60";
+                    displayCorrections(detectedPose, corrections);
+                } else if (detectedPose === "No pose detected") {
+                    resultDiv.textContent = "Stand in view of the camera";
+                    resultDiv.style.color = "#e74c3c";
+                    displayCorrections(detectedPose, corrections);
+                } else {
+                    resultDiv.textContent = `Adjust your ${detectedPose.replace(' Pose', '')}...`;
+                    resultDiv.style.color = "#f39c12";
+                    displayCorrections(detectedPose, corrections);
+                }
+                
+                setTimeout(detectPose, POSE_DETECTION_INTERVAL);
+            } catch (err) {
+                console.error("Detection error: ", err);
+                resultDiv.textContent = "Error detecting pose. Trying again...";
+                resultDiv.style.color = "#e74c3c";
+                setTimeout(detectPose, 1000); // Try again after 1 second
+            }
+        }
+
+        // Initialize the app
+        async function init() {
+            // Load PoseNet first
+            const modelReady = await loadPoseNet();
+            
+            if (!modelReady) {
+                startBtn.disabled = true;
+                return;
+            }
+            
+            // Get available cameras
+            await getCameras();
+            
+            // Setup default camera (front-facing if available)
+            await setupCamera();
+            
+            // Camera select change handler
+            cameraSelect.addEventListener('change', async () => {
+                if (isDetecting) {
+                    isDetecting = false;
+                    startBtn.textContent = "Start Detection";
+                }
+                await setupCamera(cameraSelect.value);
+            });
+            
+            // Start/stop detection button
+            startBtn.addEventListener('click', async () => {
+                if (isDetecting) {
+                    isDetecting = false;
+                    startBtn.textContent = "Start Detection";
+                    resultDiv.textContent = "Detection stopped";
+                    correctionStepsDiv.innerHTML = '';
+                    correctionTitleDiv.textContent = "Pose Correction Steps";
+                    if (synth.speaking) {
+                        synth.cancel();
+                    }
+                    return;
+                }
+                
+                isDetecting = true;
+                startBtn.textContent = "Stop Detection";
+                detectPose();
+            });
+        }
+
+        // Start the application
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

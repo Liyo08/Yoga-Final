@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign Up</title>
+    <link rel="stylesheet" href="css/signup.css"> 
+</head>
+<body>
+
+    <div class="signup-wrapper">
+        <div class="signup-box">
+            <h2>Sign Up</h2>
+            <p>Create your account to get started.</p>
+
+            <form id="signupForm" method="POST">
+                <div class="input-field">
+                    <input type="text" id="fullname" required>
+                    <label>Full Name</label>
+                </div>
+
+                <div class="input-field">
+                    <input type="email" id="email" required>
+                    <label>Email</label>
+                </div>
+
+                <div class="input-field">
+                    <input type="password" id="password" required>
+                    <label>Password</label>
+                </div>
+
+                <div class="input-field">
+                    <input type="password" id="confirm_password" required>
+                    <label>Confirm Password</label>
+                </div>
+
+                <button type="submit" class="btn-signup">Sign Up</button>
+
+                <div class="signup-options">
+                    <p>Already have an account? <a href="signin.html">Sign In</a></p>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Include EmailJS -->
+    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+    <script>
+        (function() {
+            emailjs.init("5mh9pUwgd-73em7b1"); // Replace with your actual Public Key
+        })();
+
+        document.getElementById("signupForm").addEventListener("submit", function (e) {
+            e.preventDefault();
+            
+            let fullName = document.getElementById("fullname").value;
+            let email = document.getElementById("email").value;
+            let password = document.getElementById("password").value;
+            let confirmPassword = document.getElementById("confirm_password").value;
+            
+            if (password !== confirmPassword) {
+                alert("Passwords do not match!");
+                return;
+            }
+            
+            let formData = new FormData();
+            formData.append("name", fullName);
+            formData.append("email", email);
+            formData.append("password", password);
+        
+            fetch("php/register.php", {
+                method: "POST",
+                body: formData
+            })
+            .then(response => response.text()) // Get response as text first
+            .then(text => {
+                try {
+                    return JSON.parse(text); // Try to parse JSON
+                } catch {
+                    throw new Error("Invalid JSON response from server: " + text);
+                }
+            })
+            .then(data => {
+                if (data.status === "success") {
+                    // Send welcome email using EmailJS
+                    let templateParams = {
+                        name: fullName,
+                        email: email
+                    };
+
+                    emailjs.send("service_lqowxml", "template_z7vgpkn", templateParams)
+                        .then(function(response) {
+                            console.log("Email sent successfully:", response);
+                        }, function(error) {
+                            console.error("Error sending email:", error);
+                        });
+
+                    alert("Registration successful! Redirecting to Sign In...");
+                    window.location.href = "signin.html";
+                } else {
+                    alert(data.message);
+                }
+            })
+            .catch(error => console.error("Error:", error));
+        });
+    </script>
+
+</body>
+</html>
+
