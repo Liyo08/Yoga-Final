@@ -1,6 +1,6 @@
 # 🧘 ZenAlign
 
-ZenAlign is an AI-powered web platform designed to help users improve their yoga posture and overall wellness.
+### ZenAlign is an AI-powered web platform designed to help users improve their yoga posture and overall wellness.
 Built as part of our academic journey, the project combines real-time pose correction with a suite of personalized health and mindfulness tools.
 
 ## 🌟 Key Modules
